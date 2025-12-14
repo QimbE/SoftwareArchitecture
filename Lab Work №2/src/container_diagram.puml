@@ -37,6 +37,7 @@ System_Boundary(sandwich_system, "Система заказа сэндвичей
     ContainerDb(payment_db, "Payment Database", "PostgreSQL", "Хранит данные о платежах")
 
     Container(notification_service, "Notification Service", "C#, ASP.NET Core", "Отправка уведомлений: SMS, push")
+    ContainerDb(notification_db, "Notification Database", "PostgreSQL", "Хранит историю отправленных уведомлений")
 
     Container(integration_service, "Integration Service", "C#, ASP.NET Core", "Интеграция с внешними картографическими сервисами")
 
@@ -84,6 +85,7 @@ Rel(payment_service, payment_db, "Читает/пишет", "EF Core")
 Rel(payment_service, payment_gateway, "Обрабатывает платежи", "HTTPS/API")
 Rel(payment_service, kafka, "Публикует события платежей", "Kafka Protocol")
 
+Rel(notification_service, notification_db, "Читает/пишет", "EF Core")
 Rel(notification_service, kafka, "Читает события", "Kafka Protocol")
 Rel(notification_service, sms_provider, "Отправляет SMS", "HTTPS/API")
 Rel(notification_service, push_provider, "Отправляет push", "HTTPS/API")
