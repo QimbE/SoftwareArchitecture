@@ -76,6 +76,7 @@ Rel(delivery_service, kafka, "Публикует/читает события", "
 Rel(delivery_service, integration_service, "Запрашивает маршруты", "HTTPS/REST")
 
 Rel(user_service, user_db, "Читает/пишет", "EF Core")
+Rel(user_service, kafka, "Публикует события пользователей", "Kafka Protocol")
 
 Rel(promotion_service, promotion_db, "Читает/пишет", "EF Core")
 
