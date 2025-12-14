@@ -1,0 +1,93 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+
+  skinparam nodesep 125
+  skinparam ranksep 200
+  skinparam ArrowThickness 2
+
+title Диаграмма компонентов - User Service
+
+Container(client_app, "Client Mobile App", "iOS/Android, React Native", "Мобильное приложение для клиентов")
+Container(driver_app, "Driver Mobile App", "iOS/Android, React Native", "Мобильное приложение для водителей")
+Container(web_app, "Web Application", "React, TypeScript", "Веб-приложение для сотрудников и админов")
+
+Container_Boundary(user_service, "User Service") {
+    Component(auth_controller, "AuthController", "ASP.NET Core Controller", "API для аутентификации: login, register, refresh token, password reset")
+    Component(user_controller, "UserController", "ASP.NET Core Controller", "API для управления профилем пользователя")
+    Component(admin_controller, "AdminUserController", "ASP.NET Core Controller", "API для создания пользователей с ролями (только для админов)")
+
+    Component(jwt_middleware, "JwtMiddleware", "ASP.NET Core Middleware", "Валидация JWT токенов в HTTP запросах")
+    Component(role_auth_handler, "RoleAuthorizationHandler", "Authorization Handler", "Проверка прав доступа на основе ролей")
+
+    Component(auth_service, "AuthService", "Business Logic", "Аутентификация, регистрация, генерация токенов")
+    Component(token_service, "TokenService", "Business Logic", "Генерация и валидация JWT (Access + Refresh)")
+    Component(user_service_logic, "UserService", "Business Logic", "Управление пользователями, обновление профиля")
+    Component(role_service, "RoleService", "Business Logic", "Управление ролями и правами доступа")
+    Component(phone_verification_service, "PhoneVerificationService", "Business Logic", "Верификация номера телефона, генерация кодов")
+    Component(password_reset_service, "PasswordResetService", "Business Logic", "Сброс пароля через SMS")
+
+    Component(user_repository, "UserRepository", "Data Access", "CRUD операции с пользователями в БД")
+    Component(role_repository, "RoleRepository", "Data Access", "CRUD операции с ролями в БД")
+    Component(refresh_token_repository, "RefreshTokenRepository", "Data Access", "Управление refresh tokens в БД")
+
+    Component(kafka_publisher, "KafkaPublisher", "Messaging", "Публикация событий в Kafka")
+}
+
+ContainerDb(user_db, "User Database", "PostgreSQL", "Хранит пользователей, роли, refresh tokens")
+Container(kafka, "Apache Kafka", "Message Broker", "Обмен событиями между сервисами")
+Container(notification_service, "Notification Service", "C# ASP.NET Core", "Отправка SMS и push-уведомлений")
+
+
+Rel(client_app, auth_controller, "POST /auth/register, /auth/login", "HTTPS/JSON")
+Rel(client_app, user_controller, "GET/PUT /users/me", "HTTPS/JSON")
+Rel(driver_app, auth_controller, "POST /auth/login, /auth/refresh", "HTTPS/JSON")
+Rel(web_app, auth_controller, "POST /auth/login", "HTTPS/JSON")
+Rel(web_app, admin_controller, "POST /admin/users (создание Driver, Employee, etc.)", "HTTPS/JSON")
+
+
+Rel(auth_controller, jwt_middleware, "Проверяет токен")
+Rel(user_controller, jwt_middleware, "Проверяет токен")
+Rel(admin_controller, jwt_middleware, "Проверяет токен")
+Rel(jwt_middleware, role_auth_handler, "Проверяет права доступа")
+
+
+Rel(auth_controller, auth_service, "Вызывает методы")
+Rel(auth_controller, phone_verification_service, "Запрашивает верификацию")
+Rel(auth_controller, password_reset_service, "Запрашивает сброс пароля")
+Rel(user_controller, user_service_logic, "Вызывает методы")
+Rel(admin_controller, user_service_logic, "Создает пользователей")
+Rel(admin_controller, role_service, "Назначает роли")
+
+
+Rel(auth_service, token_service, "Генерирует JWT")
+Rel(auth_service, user_repository, "Проверяет credentials")
+Rel(auth_service, refresh_token_repository, "Сохраняет refresh tokens")
+Rel(auth_service, kafka_publisher, "Публикует UserCreated")
+
+Rel(token_service, refresh_token_repository, "Валидирует refresh tokens")
+
+Rel(user_service_logic, user_repository, "CRUD операции")
+Rel(user_service_logic, kafka_publisher, "Публикует UserUpdated")
+
+Rel(role_service, role_repository, "CRUD операции")
+Rel(role_service, user_repository, "Обновляет роли пользователей")
+Rel(role_service, kafka_publisher, "Публикует UserRoleChanged")
+
+Rel(phone_verification_service, kafka_publisher, "Публикует PhoneVerificationRequested")
+
+Rel(password_reset_service, user_repository, "Обновляет пароль")
+Rel(password_reset_service, kafka_publisher, "Публикует PasswordResetRequested")
+
+
+Rel(user_repository, user_db, "SELECT, INSERT, UPDATE", "EF Core/SQL")
+Rel(role_repository, user_db, "SELECT, INSERT, UPDATE", "EF Core/SQL")
+Rel(refresh_token_repository, user_db, "SELECT, INSERT, DELETE", "EF Core/SQL")
+
+
+Rel(kafka_publisher, kafka, "Публикует события", "Kafka Protocol")
+Rel(kafka, notification_service, "Читает события для отправки SMS", "Kafka Protocol")
+
+
+@enduml
