@@ -4,6 +4,10 @@
 LAYOUT_TOP_DOWN()
 LAYOUT_WITH_LEGEND()
 
+  skinparam nodesep 125
+  skinparam ranksep 200
+  skinparam ArrowThickness 2
+
 title Диаграмма контейнеров - Система заказа сэндвичей (SOA)
 
 Person(client, "Клиент", "Заказывает сэндвичи")
@@ -32,7 +36,7 @@ System_Boundary(sandwich_system, "Система заказа сэндвичей
     Container(payment_service, "Payment Service", "C#, ASP.NET Core", "Обработка платежей, интеграция с платежными системами")
     ContainerDb(payment_db, "Payment Database", "PostgreSQL", "Хранит данные о платежах")
 
-    Container(notification_service, "Notification Service", "C#, ASP.NET Core", "Отправка уведомлений: SMS, push, email")
+    Container(notification_service, "Notification Service", "C#, ASP.NET Core", "Отправка уведомлений: SMS, push")
 
     Container(integration_service, "Integration Service", "C#, ASP.NET Core", "Интеграция с внешними картографическими сервисами")
 
