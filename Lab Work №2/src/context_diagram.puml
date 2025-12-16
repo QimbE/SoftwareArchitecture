@@ -15,7 +15,8 @@ System(sandwich_system, "Система заказа сэндвичей", "По�
 
 System_Ext(maps, "Картографические сервисы", "Предоставляют API для построения маршрутов и информации о пробках (2GIS, Яндекс.Карты)")
 System_Ext(payment, "Платежные сервисы", "Обеспечивают онлайн-оплату и возвраты средств")
-System_Ext(notification, "Сервисы уведомлений", "Отправляют SMS и push-уведомления")
+System_Ext(notification_sms, "SMS провайдер", "Отправляют SMS")
+System_Ext(notification_push, "Push провайдер", "Отправляют Mobile pushes")
 
 Rel(client, sandwich_system, "Оформляет заказы, отслеживает статус, получает уведомления", "HTTPS/Mobile App")
 Rel(driver, sandwich_system, "Получает заказы на доставку, отмечает статус доставки", "Mobile App")
@@ -25,6 +26,7 @@ Rel(franchiser, sandwich_system, "Управляет национальными 
 
 Rel(sandwich_system, maps, "Получает маршруты и информацию о пробках", "HTTPS/API")
 Rel(sandwich_system, payment, "Обрабатывает онлайн-платежи", "HTTPS/API")
-Rel(sandwich_system, notification, "Отправляет уведомления клиентам и водителям", "HTTPS/API")
+Rel(sandwich_system, notification_sms, "Отправляет уведомления клиентам и водителям", "HTTPS/API")
+Rel(sandwich_system, notification_push, "Отправляет уведомления клиентам и водителям", "HTTPS/API")
 
 @enduml

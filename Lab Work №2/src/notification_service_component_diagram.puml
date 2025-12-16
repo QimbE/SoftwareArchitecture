@@ -9,12 +9,8 @@ skinparam ArrowThickness 2
 
 title Диаграмма компонентов - Notification Service
 
-Container(other_services, "Other Services", "Order, Delivery, User, Payment, Promotion", "Публикуют сообщения в топики SMS и MobilePush")
+Container(kafka, "Apache Kafka", "Kafka cluster", "Асинхронная коммуникация")
 
-Container_Boundary(kafka_boundary, "Apache Kafka") {
-    Component(sms_topic, "SMS Topic", "Kafka Topic", "Топик для SMS сообщений с единым контрактом")
-    Component(push_topic, "MobilePush Topic", "Kafka Topic", "Топик для push-уведомлений с единым контрактом")
-}
 
 Container_Boundary(notification_service, "Notification Service") {
     Component(sms_consumer, "SmsConsumer", "Kafka Consumer", "Читает сообщения из SMS Topic и отправляет SMS")
@@ -35,13 +31,9 @@ ContainerDb(notification_db, "Notification Database", "PostgreSQL", "Храни�
 System_Ext(sms_provider, "SMS провайдер", "Внешний сервис отправки SMS")
 System_Ext(push_provider, "Push провайдер", "Firebase Cloud Messaging")
 
-' Другие сервисы публикуют сообщения в топики
-Rel(other_services, sms_topic, "Публикует SMS (phone, template, params)", "Kafka Protocol")
-Rel(other_services, push_topic, "Публикует Push (userId, template, params)", "Kafka Protocol")
-
 ' Consumers читают из топиков
-Rel(sms_topic, sms_consumer, "Читает сообщения", "Kafka Protocol")
-Rel(push_topic, push_consumer, "Читает сообщения", "Kafka Protocol")
+Rel(kafka, sms_consumer, "Читает сообщения", "Kafka Protocol")
+Rel(kafka, push_consumer, "Читает сообщения", "Kafka Protocol")
 
 ' Consumers передают в сервисы
 Rel(sms_consumer, sms_service, "Передает сообщение для отправки")
@@ -67,12 +59,7 @@ Rel(notification_history_service, notification_history_repo, "Сохраняет
 ' Repositories работают с БД
 Rel(notification_history_repo, notification_db, "INSERT", "EF Core/SQL")
 
-' Layout hints
-Lay_D(other_services, sms_topic)
-Lay_R(sms_topic, push_topic)
 
-Lay_D(sms_topic, sms_consumer)
-Lay_D(push_topic, push_consumer)
 
 Lay_D(sms_consumer, sms_service)
 Lay_D(push_consumer, push_service)

@@ -37,8 +37,6 @@ Container_Boundary(user_service, "User Service") {
 
 ContainerDb(user_db, "User Database", "PostgreSQL", "Хранит пользователей, роли, refresh tokens")
 Container(kafka, "Apache Kafka", "Message Broker", "Обмен событиями между сервисами")
-Container(notification_service, "Notification Service", "C# ASP.NET Core", "Отправка SMS и push-уведомлений")
-
 
 Rel(client_app, auth_controller, "POST /auth/register, /auth/login", "HTTPS/JSON")
 Rel(client_app, user_controller, "GET/PUT /users/me", "HTTPS/JSON")
@@ -87,7 +85,6 @@ Rel(refresh_token_repository, user_db, "SELECT, INSERT, DELETE", "EF Core/SQL")
 
 
 Rel(kafka_publisher, kafka, "Публикует события", "Kafka Protocol")
-Rel(kafka, notification_service, "Читает события для отправки SMS", "Kafka Protocol")
 
 
 @enduml
