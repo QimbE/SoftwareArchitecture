@@ -1,0 +1,78 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+
+skinparam nodesep 125
+skinparam ranksep 200
+skinparam ArrowThickness 2
+
+title Диаграмма компонентов - Notification Service
+
+Container(kafka, "Apache Kafka", "Kafka cluster", "Асинхронная коммуникация")
+
+
+Container_Boundary(notification_service, "Notification Service") {
+    Component(sms_consumer, "SmsConsumer", "Kafka Consumer", "Читает сообщения из SMS Topic и отправляет SMS")
+    Component(push_consumer, "PushConsumer", "Kafka Consumer", "Читает сообщения из MobilePush Topic и отправляет push")
+
+    Component(sms_service, "SmsService", "Business Logic", "Рендерит шаблон и отправляет SMS сообщения")
+    Component(push_service, "PushService", "Business Logic", "Рендерит шаблон и отправляет push-уведомления")
+    Component(template_renderer, "TemplateRenderer", "Template Library", "Библиотека рендеринга шаблонов (подстановка параметров)")
+    Component(notification_history_service, "NotificationHistoryService", "Business Logic", "Логирует отправленные уведомления")
+
+    Component(notification_history_repo, "NotificationHistoryRepository", "Data Access", "Сохраняет историю отправленных уведомлений в БД")
+
+    Component(sms_provider_client, "SmsProviderClient", "External Integration", "HTTP клиент для SMS провайдера")
+    Component(push_provider_client, "PushProviderClient", "External Integration", "HTTP клиент для Firebase Cloud Messaging")
+}
+
+ContainerDb(notification_db, "Notification Database", "PostgreSQL", "Хранит историю отправленных уведомлений")
+System_Ext(sms_provider, "SMS провайдер", "Внешний сервис отправки SMS")
+System_Ext(push_provider, "Push провайдер", "Firebase Cloud Messaging")
+
+' Consumers читают из топиков
+Rel(kafka, sms_consumer, "Читает сообщения", "Kafka Protocol")
+Rel(kafka, push_consumer, "Читает сообщения", "Kafka Protocol")
+
+' Consumers передают в сервисы
+Rel(sms_consumer, sms_service, "Передает сообщение для отправки")
+Rel(push_consumer, push_service, "Передает сообщение для отправки")
+
+' Services используют Template Renderer
+Rel(sms_service, template_renderer, "Рендерит шаблон с параметрами")
+Rel(push_service, template_renderer, "Рендерит шаблон с параметрами")
+
+' Services отправляют через клиентов
+Rel(sms_service, sms_provider_client, "Вызывает API отправки SMS")
+Rel(push_service, push_provider_client, "Вызывает API отправки Push")
+
+' Клиенты обращаются к внешним провайдерам
+Rel(sms_provider_client, sms_provider, "POST /send-sms", "HTTPS/JSON")
+Rel(push_provider_client, push_provider, "POST /send-push", "HTTPS/JSON")
+
+' Логирование истории
+Rel(sms_service, notification_history_service, "Логирует отправленный SMS")
+Rel(push_service, notification_history_service, "Логирует отправленный Push")
+Rel(notification_history_service, notification_history_repo, "Сохраняет запись")
+
+' Repositories работают с БД
+Rel(notification_history_repo, notification_db, "INSERT", "EF Core/SQL")
+
+
+
+Lay_D(sms_consumer, sms_service)
+Lay_D(push_consumer, push_service)
+
+Lay_R(sms_service, push_service)
+Lay_D(sms_service, template_renderer)
+
+Lay_R(template_renderer, notification_history_service)
+Lay_D(notification_history_service, notification_history_repo)
+
+Lay_D(template_renderer, sms_provider_client)
+Lay_D(push_service, push_provider_client)
+
+Lay_D(notification_history_repo, notification_db)
+
+@enduml

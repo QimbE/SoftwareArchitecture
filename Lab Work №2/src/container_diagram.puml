@@ -1,0 +1,98 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_TOP_DOWN()
+LAYOUT_WITH_LEGEND()
+
+  skinparam nodesep 125
+  skinparam ranksep 200
+  skinparam ArrowThickness 2
+
+title Диаграмма контейнеров - Система заказа сэндвичей (SOA)
+
+Person(client, "Клиент", "Заказывает сэндвичи")
+Person(driver, "Водитель", "Доставляет заказы")
+Person(employee, "Сотрудник", "Готовит заказы")
+Person(franchisee, "Владелец франшизы", "Управляет магазином")
+Person(franchiser, "Материнская компания", "Управляет сетью")
+
+System_Boundary(sandwich_system, "Система заказа сэндвичей") {
+    Container(client_app, "Client Mobile App", "iOS/Android, React Native", "Позволяет клиентам заказывать сэндвичи, отслеживать заказы")
+    Container(driver_app, "Driver Mobile App", "iOS/Android, React Native", "Позволяет водителям получать и выполнять заказы на доставку")
+    Container(web_app, "Web Application", "React, TypeScript", "Интерфейс для сотрудников, владельцев франшиз и материнской компании")
+
+    Container(order_service, "Order Service", "C#, ASP.NET Core", "Управление заказами, статусами, историей заказов")
+    ContainerDb(order_db, "Order Database", "PostgreSQL", "Хранит данные о заказах")
+
+    Container(delivery_service, "Delivery Service", "C#, ASP.NET Core", "Управление доставкой, назначение водителей, отслеживание маршрутов")
+    ContainerDb(delivery_db, "Delivery Database", "PostgreSQL", "Хранит данные о доставках")
+
+    Container(user_service, "User Service", "C#, ASP.NET Core", "Управление пользователями, аутентификация, авторизация")
+    ContainerDb(user_db, "User Database", "PostgreSQL", "Хранит данные пользователей")
+
+    Container(promotion_service, "Promotion Service", "C#, ASP.NET Core", "Управление акциями и специальными предложениями")
+    ContainerDb(promotion_db, "Promotion Database", "PostgreSQL", "Хранит данные об акциях")
+
+    Container(payment_service, "Payment Service", "C#, ASP.NET Core", "Обработка платежей, интеграция с платежными системами")
+    ContainerDb(payment_db, "Payment Database", "PostgreSQL", "Хранит данные о платежах")
+
+    Container(notification_service, "Notification Service", "C#, ASP.NET Core", "Отправка уведомлений: SMS, push")
+    ContainerDb(notification_db, "Notification Database", "PostgreSQL", "Хранит историю отправленных уведомлений")
+
+    Container(integration_service, "Integration Service", "C#, ASP.NET Core", "Интеграция с внешними картографическими сервисами")
+
+    Container(kafka, "Apache Kafka", "Kafka Cluster", "Асинхронная коммуникация между сервисами, обмен событиями")
+}
+
+System_Ext(maps, "Картографические сервисы", "2GIS, Яндекс.Карты API")
+System_Ext(payment_gateway, "Платежные сервисы", "Эквайринг, банковские API")
+System_Ext(sms_provider, "SMS провайдер", "Отправка SMS")
+System_Ext(push_provider, "Push провайдер", "Firebase Cloud Messaging")
+
+Rel(client, client_app, "Использует", "HTTPS")
+Rel(driver, driver_app, "Использует", "HTTPS")
+Rel(employee, web_app, "Использует", "HTTPS")
+Rel(franchisee, web_app, "Использует", "HTTPS")
+Rel(franchiser, web_app, "Использует", "HTTPS")
+
+Rel(client_app, order_service, "Создает/просматривает заказы", "HTTPS/REST")
+Rel(client_app, user_service, "Аутентификация, профиль", "HTTPS/REST")
+Rel(client_app, promotion_service, "Получает акции", "HTTPS/REST")
+Rel(client_app, payment_service, "Оплата заказов", "HTTPS/REST")
+Rel(client_app, delivery_service, "Отслеживает доставку", "HTTPS/REST")
+
+Rel(driver_app, delivery_service, "Управляет доставками", "HTTPS/REST")
+Rel(driver_app, user_service, "Аутентификация", "HTTPS/REST")
+
+Rel(web_app, order_service, "Управляет заказами", "HTTPS/REST")
+Rel(web_app, user_service, "Аутентификация, управление", "HTTPS/REST")
+Rel(web_app, promotion_service, "Управляет акциями", "HTTPS/REST")
+Rel(web_app, delivery_service, "Просматривает доставки", "HTTPS/REST")
+
+Rel(order_service, order_db, "Читает/пишет", "EF Core")
+Rel(order_service, kafka, "Публикует события заказов", "Kafka Protocol")
+
+Rel(delivery_service, delivery_db, "Читает/пишет", "EF Core")
+Rel(delivery_service, kafka, "Публикует/читает события", "Kafka Protocol")
+Rel(delivery_service, integration_service, "Запрашивает маршруты", "HTTPS/REST")
+
+Rel(user_service, user_db, "Читает/пишет", "EF Core")
+Rel(user_service, kafka, "Публикует события пользователей", "Kafka Protocol")
+
+Rel(promotion_service, promotion_db, "Читает/пишет", "EF Core")
+
+Rel(payment_service, payment_db, "Читает/пишет", "EF Core")
+Rel(payment_service, payment_gateway, "Обрабатывает платежи", "HTTPS/API")
+Rel(payment_service, kafka, "Публикует события платежей", "Kafka Protocol")
+
+Rel(notification_service, notification_db, "Читает/пишет", "EF Core")
+Rel(notification_service, kafka, "Читает события", "Kafka Protocol")
+Rel(notification_service, sms_provider, "Отправляет SMS", "HTTPS/API")
+Rel(notification_service, push_provider, "Отправляет push", "HTTPS/API")
+
+Rel(integration_service, maps, "Получает маршруты", "HTTPS/API")
+
+Rel(order_service, payment_service, "Проверяет статус оплаты", "HTTPS/REST")
+Rel(order_service, delivery_service, "Создает доставку", "HTTPS/REST")
+
+@enduml

@@ -1,0 +1,32 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Диаграмма системного контекста - Система заказа сэндвичей
+
+Person(client, "Клиент", "Заказывает сэндвичи через сайт или мобильное приложение")
+Person(driver, "Водитель доставки", "Доставляет заказы клиентам")
+Person(employee, "Сотрудник магазина", "Готовит заказы и выдает их клиентам")
+Person(franchisee, "Владелец франшизы", "Управляет локальным магазином и настраивает локальные акции")
+Person(franchiser, "Материнская компания", "Управляет национальными акциями и предложениями")
+
+System(sandwich_system, "Система заказа сэндвичей", "Позволяет клиентам заказывать сэндвичи онлайн, отслеживать заказы, управлять доставкой и акциями")
+
+System_Ext(maps, "Картографические сервисы", "Предоставляют API для построения маршрутов и информации о пробках (2GIS, Яндекс.Карты)")
+System_Ext(payment, "Платежные сервисы", "Обеспечивают онлайн-оплату и возвраты средств")
+System_Ext(notification_sms, "SMS провайдер", "Отправляют SMS")
+System_Ext(notification_push, "Push провайдер", "Отправляют Mobile pushes")
+
+Rel(client, sandwich_system, "Оформляет заказы, отслеживает статус, получает уведомления", "HTTPS/Mobile App")
+Rel(driver, sandwich_system, "Получает заказы на доставку, отмечает статус доставки", "Mobile App")
+Rel(employee, sandwich_system, "Отмечает статус готовности заказа, управляет выдачей", "Web/App")
+Rel(franchisee, sandwich_system, "Управляет магазином, настраивает локальные акции", "Web")
+Rel(franchiser, sandwich_system, "Управляет национальными акциями", "Web")
+
+Rel(sandwich_system, maps, "Получает маршруты и информацию о пробках", "HTTPS/API")
+Rel(sandwich_system, payment, "Обрабатывает онлайн-платежи", "HTTPS/API")
+Rel(sandwich_system, notification_sms, "Отправляет уведомления клиентам и водителям", "HTTPS/API")
+Rel(sandwich_system, notification_push, "Отправляет уведомления клиентам и водителям", "HTTPS/API")
+
+@enduml
