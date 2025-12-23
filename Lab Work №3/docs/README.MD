@@ -22,7 +22,32 @@ Use-case регистрации - в два этапа. Сначала запр�
 
 ## Применение основных принципов разработки
 
-<Продемонстрировать фрагменты кода, пояснив какой принцип реализуется>
+### KISS (Keep It Simple, Stupid)
+
+**Принцип простоты** — код должен быть максимально простым и понятным, без излишней сложности.
+
+```csharp
+// PhoneVerificationService.cs
+public class PhoneVerificationService
+{
+    private readonly Random _random = new Random();
+
+    public string GenerateRandomCode()
+    {
+        return _random.Next(100000, 999999).ToString();
+    }
+
+
+    public bool IsCodeValid(PhoneVerification verification)
+    {
+        return !verification.IsUsed
+               && verification.ExpiresAt > DateTime.UtcNow
+               && verification.AttemptsCount < 3;
+    }
+}
+```
+
+**Применение KISS:** Методы выполняют одну простую задачу без излишних абстракций. `GenerateRandomCode()` генерирует 6-значное число без сложных алгоритмов. `IsCodeValid()` проверяет три простых условия в читаемом виде — код не использован, не истек и не превышен лимит попыток.
 
 ## Дополнительные принципы разработки
 
