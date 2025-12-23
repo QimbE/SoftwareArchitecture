@@ -15,8 +15,6 @@ box "User Service" #LightBlue
     participant "UserRepository" as UserRepo
     participant "RoleService" as RoleSvc
     participant "PhoneVerificationService" as PhoneVerSvc
-    participant "TokenService" as TokenSvc
-    participant "RefreshTokenRepository" as RefreshRepo
     participant "KafkaPublisher" as Kafka
 end box
 database "User Database" as DB
@@ -142,56 +140,20 @@ deactivate DB
 UserRepo --> PhoneVerSvc: success
 deactivate UserRepo
 
-PhoneVerSvc --> AuthCtrl: VerificationResult\n{success: true, userId}
-deactivate PhoneVerSvc
-
-AuthCtrl -> AuthSvc: GenerateTokensAfterVerificationAsync(userId)
-activate AuthSvc
-
-AuthSvc -> UserRepo: GetByIdAsync(userId)
-activate UserRepo
-UserRepo -> DB: SELECT * FROM users\nJOIN user_roles\nWHERE id = ?
-activate DB
-DB --> UserRepo: user with roles
-deactivate DB
-UserRepo --> AuthSvc: User entity
-deactivate UserRepo
-
-AuthSvc -> TokenSvc: GenerateAccessTokenAsync(user)
-activate TokenSvc
-TokenSvc -> TokenSvc: CreateJwtToken(\nuserId, roles,\nexpires: 15 min)
-TokenSvc --> AuthSvc: accessToken (JWT)
-deactivate TokenSvc
-
-AuthSvc -> TokenSvc: GenerateRefreshTokenAsync(user)
-activate TokenSvc
-TokenSvc -> TokenSvc: CreateRefreshToken(\nexpires: 30 days)
-TokenSvc --> AuthSvc: refreshToken
-deactivate TokenSvc
-
-AuthSvc -> RefreshRepo: SaveRefreshTokenAsync(userId, refreshToken)
-activate RefreshRepo
-RefreshRepo -> DB: INSERT INTO refresh_tokens\n(user_id, token_hash,\nexpires_at)
-activate DB
-DB --> RefreshRepo: success
-deactivate DB
-RefreshRepo --> AuthSvc: success
-deactivate RefreshRepo
-
-AuthSvc -> Kafka: PublishAsync(\nUserCreated,\n{userId, phone, roles})
+PhoneVerSvc -> Kafka: PublishAsync(\nUserCreated,\n{userId, phone})
 activate Kafka
 Kafka -> KafkaBroker: Отправка события
 activate KafkaBroker
 deactivate KafkaBroker
 deactivate Kafka
 
-AuthSvc --> AuthCtrl: TokenPair\n{accessToken, refreshToken}
-deactivate AuthSvc
+PhoneVerSvc --> AuthCtrl: VerificationResult\n{success: true, userId}
+deactivate PhoneVerSvc
 
-AuthCtrl --> App: 200 OK\n{accessToken, refreshToken,\nuser: {id, phone, firstName}}
+AuthCtrl --> App: 200 OK\n{message: "Регистрация успешна",\nuserId}
 deactivate AuthCtrl
 
-App --> Client: "Регистрация\nуспешна!"
+App --> Client: "Регистрация успешна!\nТеперь войдите\nв аккаунт"
 deactivate App
 
 @enduml
