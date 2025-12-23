@@ -90,6 +90,73 @@ public class AuthService
 
 Реализовано только то, что необходимо для базовой регистрации: проверка уникальности телефона, хеширование пароля и сохранение минимального набора данных.
 
+### DRY (Don't Repeat Yourself)
+
+**Принцип "Не повторяйся"** — избегать дублирования кода, выносить общую логику в переиспользуемые компоненты.
+
+```csharp
+// BaseRepository.cs - базовый репозиторий для избежания дублирования
+public abstract class BaseRepository<T> where T : class
+{
+    protected readonly DbContext _context;
+
+    protected BaseRepository(DbContext context)
+    {
+        _context = context;
+    }
+
+    // Общий метод создания - используется всеми репозиториями
+    public async Task<T> CreateAsync(T entity)
+    {
+        await _context.Set<T>().AddAsync(entity);
+        await _context.SaveChangesAsync();
+        return entity;
+    }
+
+    // Общий метод получения по ID
+    public async Task<T?> GetByIdAsync(Guid id)
+    {
+        return await _context.Set<T>().FindAsync(id);
+    }
+}
+
+// UserRepository.cs - наследует общую логику
+public class UserRepository : BaseRepository<User>, IUserRepository
+{
+    public UserRepository(DbContext context) : base(context) { }
+
+    // Только специфичная логика для User
+    public async Task<User?> GetByPhoneAsync(string phone)
+    {
+        return await _context.Set<User>()
+            .FirstOrDefaultAsync(u => u.Phone == phone);
+    }
+}
+
+// RefreshTokenRepository.cs - также использует базовую логику
+public class RefreshTokenRepository : BaseRepository<RefreshToken>, IRefreshTokenRepository
+{
+    public RefreshTokenRepository(DbContext context) : base(context) { }
+
+    // Только специфичная логика для RefreshToken
+    public async Task<RefreshToken?> GetValidTokenAsync(string tokenHash)
+    {
+        return await _context.Set<RefreshToken>()
+            .FirstOrDefaultAsync(t => t.TokenHash == tokenHash
+                                   && t.ExpiresAt > DateTime.UtcNow
+                                   && t.RevokedAt == null);
+    }
+}
+```
+
+**Применение DRY:**
+- Общие методы `CreateAsync()` и `GetByIdAsync()` вынесены в базовый класс `BaseRepository<T>`
+- Избегаем дублирования кода работы с `DbContext` в каждом репозитории
+- Специфичная логика (поиск по телефону, поиск валидного токена) реализована только там, где нужна
+- При необходимости изменить логику создания или получения сущности — правим в одном месте
+
+
+
 ## Дополнительные принципы разработки
 
 <По каждому принципу разработчик из раздела повышенной сложности обосновать отказ или применение>
