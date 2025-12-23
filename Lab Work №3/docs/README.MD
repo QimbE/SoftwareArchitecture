@@ -155,7 +155,256 @@ public class RefreshTokenRepository : BaseRepository<RefreshToken>, IRefreshToke
 - Специфичная логика (поиск по телефону, поиск валидного токена) реализована только там, где нужна
 - При необходимости изменить логику создания или получения сущности — правим в одном месте
 
+### SOLID
 
+#### S — Single Responsibility Principle (Принцип единственной ответственности)
+
+Каждый класс должен иметь только одну причину для изменения.
+
+```csharp
+// AuthService отвечает ТОЛЬКО за логику аутентификации
+public class AuthService
+{
+    public async Task<User> RegisterAsync(RegisterRequest request) { ... }
+}
+
+// PhoneVerificationService отвечает ТОЛЬКО за верификацию телефона
+public class PhoneVerificationService
+{
+    public string GenerateRandomCode() { ... }
+    public async Task<bool> VerifyCodeAsync(string phone, string code) { ... }
+}
+
+// RoleService отвечает ТОЛЬКО за управление ролями
+public class RoleService
+{
+    public async Task AssignDefaultRoleAsync(Guid userId, string roleName) { ... }
+}
+
+// KafkaPublisher отвечает ТОЛЬКО за публикацию событий
+public class KafkaPublisher
+{
+    public async Task PublishAsync<T>(string topic, T message) { ... }
+}
+```
+
+**Применение SRP:** Каждый сервис имеет четко определенную зону ответственности. Изменение логики хеширования паролей не затронет верификацию телефона, изменение генерации кодов не затронет публикацию событий.
+
+---
+
+#### O — Open/Closed Principle (Принцип открытости/закрытости)
+
+Классы открыты для расширения, но закрыты для модификации.
+
+```csharp
+// Интерфейс для хеширования паролей
+public interface IPasswordHasher
+{
+    string HashPassword(string password);
+    bool VerifyPassword(string password, string hash);
+}
+
+// Текущая реализация с BCrypt
+public class BcryptPasswordHasher : IPasswordHasher
+{
+    public string HashPassword(string password)
+    {
+        return BCrypt.Net.BCrypt.HashPassword(password);
+    }
+
+    public bool VerifyPassword(string password, string hash)
+    {
+        return BCrypt.Net.BCrypt.Verify(password, hash);
+    }
+}
+
+// Можем добавить новую реализацию БЕЗ изменения существующего кода
+public class Argon2PasswordHasher : IPasswordHasher
+{
+    public string HashPassword(string password)
+    {
+        // Реализация с Argon2
+    }
+
+    public bool VerifyPassword(string password, string hash)
+    {
+        // Реализация с Argon2
+    }
+}
+
+// AuthService не изменяется при добавлении нового хешера
+public class AuthService
+{
+    private readonly IPasswordHasher _passwordHasher;
+
+    public AuthService(IPasswordHasher passwordHasher)
+    {
+        _passwordHasher = passwordHasher; // Любая реализация
+    }
+}
+```
+
+**Применение OCP:** Можем добавить новый алгоритм хеширования (Argon2, PBKDF2) без изменения `AuthService`. Просто создаем новый класс, реализующий `IPasswordHasher`, и регистрируем в DI-контейнере.
+
+---
+
+#### L — Liskov Substitution Principle (Принцип подстановки Барбары Лисков)
+
+Объекты подклассов должны быть взаимозаменяемы с объектами базового класса.
+
+```csharp
+// Базовый абстрактный класс
+public abstract class BaseRepository<T> where T : class
+{
+    public virtual async Task<T> CreateAsync(T entity) { ... }
+    public virtual async Task<T?> GetByIdAsync(Guid id) { ... }
+}
+
+// Все наследники корректно работают как BaseRepository
+public class UserRepository : BaseRepository<User> { ... }
+public class RefreshTokenRepository : BaseRepository<RefreshToken> { ... }
+
+// Можем использовать любой репозиторий через базовый тип
+public class GenericService<T> where T : class
+{
+    private readonly BaseRepository<T> _repository;
+
+    public GenericService(BaseRepository<T> repository)
+    {
+        _repository = repository; // UserRepository или RefreshTokenRepository
+    }
+
+    public async Task<T> CreateEntityAsync(T entity)
+    {
+        // Работает корректно с любым наследником BaseRepository
+        return await _repository.CreateAsync(entity);
+    }
+}
+```
+
+**Применение LSP:** `UserRepository` и `RefreshTokenRepository` полностью заменяемы в коде, ожидающем `BaseRepository<T>`. Все методы базового класса работают корректно в наследниках без нарушения контракта.
+
+---
+
+#### I — Interface Segregation Principle (Принцип разделения интерфейсов)
+
+Клиенты не должны зависеть от интерфейсов, которые они не используют.
+
+```csharp
+// ПЛОХО - один большой интерфейс
+public interface IUserService
+{
+    Task<User> RegisterAsync(RegisterRequest request);
+    Task<User> LoginAsync(LoginRequest request);
+    Task<User> UpdateProfileAsync(UpdateProfileRequest request);
+    Task DeleteUserAsync(Guid userId);
+    Task<List<User>> GetAllUsersAsync();
+    Task AssignRoleAsync(Guid userId, string role);
+    Task SendVerificationCodeAsync(Guid userId);
+}
+
+// ХОРОШО - разделенные специфичные интерфейсы
+public interface IUserRepository
+{
+    Task<User> CreateAsync(User user);
+    Task<User?> GetByIdAsync(Guid id);
+    Task<User?> GetByPhoneAsync(string phone);
+}
+
+public interface IPhoneVerificationRepository
+{
+    Task<PhoneVerification> CreateAsync(PhoneVerification verification);
+    Task<PhoneVerification?> GetVerificationAsync(string phone, string code);
+    Task MarkAsUsedAsync(Guid verificationId);
+}
+
+public interface IRoleRepository
+{
+    Task<Role?> GetByNameAsync(string name);
+    Task AddUserRoleAsync(Guid userId, Guid roleId);
+}
+
+// Каждый сервис использует только нужные ему интерфейсы
+public class AuthService
+{
+    private readonly IUserRepository _userRepository; // Только работа с пользователями
+
+    public AuthService(IUserRepository userRepository)
+    {
+        _userRepository = userRepository;
+    }
+}
+
+public class PhoneVerificationService
+{
+    private readonly IPhoneVerificationRepository _verificationRepository; // Только верификация
+
+    public PhoneVerificationService(IPhoneVerificationRepository verificationRepository)
+    {
+        _verificationRepository = verificationRepository;
+    }
+}
+```
+
+**Применение ISP:** Каждый сервис зависит только от тех методов, которые реально использует. `AuthService` не знает о верификации телефонов, `PhoneVerificationService` не знает об управлении ролями.
+
+---
+
+#### D — Dependency Inversion Principle (Принцип инверсии зависимостей)
+
+Модули верхнего уровня не должны зависеть от модулей нижнего уровня. Оба должны зависеть от абстракций.
+
+```csharp
+// Абстракции (интерфейсы) - не зависят от деталей реализации
+public interface IUserRepository { ... }
+public interface IPasswordHasher { ... }
+public interface IKafkaPublisher { ... }
+
+// Высокоуровневый модуль зависит от абстракций, а не от конкретных реализаций
+public class AuthService
+{
+    private readonly IUserRepository _userRepository;        // Абстракция
+    private readonly IPasswordHasher _passwordHasher;        // Абстракция
+    private readonly IKafkaPublisher _kafkaPublisher;        // Абстракция
+
+    // Зависимости внедряются через конструктор
+    public AuthService(
+        IUserRepository userRepository,
+        IPasswordHasher passwordHasher,
+        IKafkaPublisher kafkaPublisher)
+    {
+        _userRepository = userRepository;
+        _passwordHasher = passwordHasher;
+        _kafkaPublisher = kafkaPublisher;
+    }
+
+    public async Task<User> RegisterAsync(RegisterRequest request)
+    {
+        // Работаем через абстракции - не знаем о конкретных реализациях
+        var hash = _passwordHasher.HashPassword(request.Password);
+        var user = await _userRepository.CreateAsync(new User { ... });
+        await _kafkaPublisher.PublishAsync("user.created", user);
+        return user;
+    }
+}
+
+// Конкретные реализации (низкоуровневые модули)
+public class UserRepository : IUserRepository { ... }
+public class BcryptPasswordHasher : IPasswordHasher { ... }
+public class KafkaPublisher : IKafkaPublisher { ... }
+
+// Регистрация зависимостей в DI-контейнере
+services.AddScoped<IUserRepository, UserRepository>();
+services.AddScoped<IPasswordHasher, BcryptPasswordHasher>();
+services.AddScoped<IKafkaPublisher, KafkaPublisher>();
+services.AddScoped<AuthService>();
+```
+
+**Применение DIP:**
+- `AuthService` зависит только от интерфейсов, не зная о конкретных реализациях
+- Можем легко заменить `UserRepository` на `CachedUserRepository` или `BcryptPasswordHasher` на `Argon2PasswordHasher`
+- Упрощается тестирование - легко создать моки для интерфейсов
+- Конфигурация зависимостей вынесена в DI-контейнер
 
 ## Дополнительные принципы разработки
 
