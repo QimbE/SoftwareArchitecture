@@ -1,0 +1,197 @@
+@startuml
+!theme plain
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam BoxPadding 10
+skinparam ParticipantPadding 20
+
+title Диаграмма последовательностей - Регистрация нового клиента
+
+actor "Клиент" as Client
+participant "Client Mobile App" as App
+box "User Service" #LightBlue
+    participant "AuthController" as AuthCtrl
+    participant "AuthService" as AuthSvc
+    participant "UserRepository" as UserRepo
+    participant "RoleService" as RoleSvc
+    participant "PhoneVerificationService" as PhoneVerSvc
+    participant "TokenService" as TokenSvc
+    participant "RefreshTokenRepository" as RefreshRepo
+    participant "KafkaPublisher" as Kafka
+end box
+database "User Database" as DB
+participant "Apache Kafka" as KafkaBroker
+
+== Этап 1: Инициация регистрации ==
+
+Client -> App: Вводит данные:\nтелефон, имя, пароль
+activate App
+
+App -> AuthCtrl: POST /auth/register\n{phone, firstName, lastName, password}
+activate AuthCtrl
+
+AuthCtrl -> AuthSvc: RegisterAsync(request)
+activate AuthSvc
+
+AuthSvc -> UserRepo: GetByPhoneAsync(phone)
+activate UserRepo
+UserRepo -> DB: SELECT * FROM users\nWHERE phone = ?
+activate DB
+DB --> UserRepo: null (пользователь не найден)
+deactivate DB
+UserRepo --> AuthSvc: null
+deactivate UserRepo
+
+AuthSvc -> AuthSvc: HashPassword(password)
+
+AuthSvc -> UserRepo: CreateAsync(user)
+activate UserRepo
+UserRepo -> DB: INSERT INTO users\n(phone, password_hash,\nfirst_name, last_name,\nis_verified = false)
+activate DB
+DB --> UserRepo: user_id
+deactivate DB
+UserRepo --> AuthSvc: User entity
+deactivate UserRepo
+
+AuthSvc -> RoleSvc: AssignDefaultRoleAsync(userId, "Client")
+activate RoleSvc
+RoleSvc -> UserRepo: AddUserRoleAsync(userId, roleId)
+activate UserRepo
+UserRepo -> DB: INSERT INTO user_roles\n(user_id, role_id)
+activate DB
+DB --> UserRepo: success
+deactivate DB
+UserRepo --> RoleSvc: success
+deactivate UserRepo
+RoleSvc --> AuthSvc: success
+deactivate RoleSvc
+
+AuthSvc -> PhoneVerSvc: GenerateAndSendCodeAsync(userId, phone)
+activate PhoneVerSvc
+
+PhoneVerSvc -> PhoneVerSvc: GenerateRandomCode()\n(6-значный код)
+
+PhoneVerSvc -> UserRepo: SaveVerificationCodeAsync(userId, phone, code)
+activate UserRepo
+UserRepo -> DB: INSERT INTO phone_verifications\n(user_id, phone, code,\nexpires_at, is_used = false)
+activate DB
+DB --> UserRepo: verification_id
+deactivate DB
+UserRepo --> PhoneVerSvc: success
+deactivate UserRepo
+
+PhoneVerSvc -> Kafka: PublishAsync(\nPhoneVerificationRequested,\n{userId, phone, code})
+activate Kafka
+Kafka -> KafkaBroker: Отправка события
+activate KafkaBroker
+deactivate KafkaBroker
+deactivate Kafka
+
+note right of KafkaBroker
+  Notification Service асинхронно
+  обработает событие и отправит SMS
+end note
+
+PhoneVerSvc --> AuthSvc: success
+deactivate PhoneVerSvc
+
+AuthSvc --> AuthCtrl: RegistrationResult\n{userId, requiresVerification: true}
+deactivate AuthSvc
+
+AuthCtrl --> App: 200 OK\n{message: "Код отправлен на телефон"}
+deactivate AuthCtrl
+
+App --> Client: "Введите код\nиз SMS"
+deactivate App
+
+== Этап 2: Верификация кода ==
+
+Client -> App: Вводит код\nверификации
+activate App
+
+App -> AuthCtrl: POST /auth/verify\n{phone, code}
+activate AuthCtrl
+
+AuthCtrl -> PhoneVerSvc: VerifyCodeAsync(phone, code)
+activate PhoneVerSvc
+
+PhoneVerSvc -> UserRepo: GetVerificationAsync(phone, code)
+activate UserRepo
+UserRepo -> DB: SELECT * FROM phone_verifications\nWHERE phone = ? AND code = ?\nAND is_used = false\nAND expires_at > NOW()
+activate DB
+DB --> UserRepo: verification entity
+deactivate DB
+UserRepo --> PhoneVerSvc: verification
+deactivate UserRepo
+
+PhoneVerSvc -> UserRepo: MarkCodeAsUsedAsync(verificationId)
+activate UserRepo
+UserRepo -> DB: UPDATE phone_verifications\nSET is_used = true
+activate DB
+DB --> UserRepo: success
+deactivate DB
+UserRepo --> PhoneVerSvc: success
+deactivate UserRepo
+
+PhoneVerSvc -> UserRepo: UpdateUserVerificationStatusAsync(userId)
+activate UserRepo
+UserRepo -> DB: UPDATE users\nSET is_verified = true\nWHERE id = ?
+activate DB
+DB --> UserRepo: success
+deactivate DB
+UserRepo --> PhoneVerSvc: success
+deactivate UserRepo
+
+PhoneVerSvc --> AuthCtrl: VerificationResult\n{success: true, userId}
+deactivate PhoneVerSvc
+
+AuthCtrl -> AuthSvc: GenerateTokensAfterVerificationAsync(userId)
+activate AuthSvc
+
+AuthSvc -> UserRepo: GetByIdAsync(userId)
+activate UserRepo
+UserRepo -> DB: SELECT * FROM users\nJOIN user_roles\nWHERE id = ?
+activate DB
+DB --> UserRepo: user with roles
+deactivate DB
+UserRepo --> AuthSvc: User entity
+deactivate UserRepo
+
+AuthSvc -> TokenSvc: GenerateAccessTokenAsync(user)
+activate TokenSvc
+TokenSvc -> TokenSvc: CreateJwtToken(\nuserId, roles,\nexpires: 15 min)
+TokenSvc --> AuthSvc: accessToken (JWT)
+deactivate TokenSvc
+
+AuthSvc -> TokenSvc: GenerateRefreshTokenAsync(user)
+activate TokenSvc
+TokenSvc -> TokenSvc: CreateRefreshToken(\nexpires: 30 days)
+TokenSvc --> AuthSvc: refreshToken
+deactivate TokenSvc
+
+AuthSvc -> RefreshRepo: SaveRefreshTokenAsync(userId, refreshToken)
+activate RefreshRepo
+RefreshRepo -> DB: INSERT INTO refresh_tokens\n(user_id, token_hash,\nexpires_at)
+activate DB
+DB --> RefreshRepo: success
+deactivate DB
+RefreshRepo --> AuthSvc: success
+deactivate RefreshRepo
+
+AuthSvc -> Kafka: PublishAsync(\nUserCreated,\n{userId, phone, roles})
+activate Kafka
+Kafka -> KafkaBroker: Отправка события
+activate KafkaBroker
+deactivate KafkaBroker
+deactivate Kafka
+
+AuthSvc --> AuthCtrl: TokenPair\n{accessToken, refreshToken}
+deactivate AuthSvc
+
+AuthCtrl --> App: 200 OK\n{accessToken, refreshToken,\nuser: {id, phone, firstName}}
+deactivate AuthCtrl
+
+App --> Client: "Регистрация\nуспешна!"
+deactivate App
+
+@enduml
