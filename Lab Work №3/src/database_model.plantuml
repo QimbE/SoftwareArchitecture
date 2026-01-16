@@ -1,0 +1,112 @@
+@startuml
+!theme plain
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam nodesep 80
+skinparam ranksep 100
+skinparam padding 10
+
+title Модель базы данных User Service
+
+class User {
+  + id: UUID <<PK>>
+  --
+  + phone: VARCHAR(20) <<UNIQUE>>
+  + email: VARCHAR(255) <<NULLABLE>>
+  + password_hash: VARCHAR(255)
+  + first_name: VARCHAR(100)
+  + last_name: VARCHAR(100)
+  + is_verified: BOOLEAN
+  + created_at: TIMESTAMP
+  + updated_at: TIMESTAMP
+}
+
+class Role {
+  + id: UUID <<PK>>
+  --
+  + name: VARCHAR(50) <<UNIQUE>>
+  + description: VARCHAR(255)
+  + created_at: TIMESTAMP
+}
+
+class UserRole {
+  + user_id: UUID <<FK, PK>>
+  + role_id: UUID <<FK, PK>>
+  --
+  + assigned_at: TIMESTAMP
+  + assigned_by: UUID <<FK, NULLABLE>>
+}
+
+class PhoneVerification {
+  + id: UUID <<PK>>
+  --
+  + user_id: UUID <<FK>>
+  + phone: VARCHAR(20)
+  + code: VARCHAR(6)
+  + expires_at: TIMESTAMP
+  + is_used: BOOLEAN
+  + attempts_count: INTEGER
+  + created_at: TIMESTAMP
+}
+
+class RefreshToken {
+  + id: UUID <<PK>>
+  --
+  + user_id: UUID <<FK>>
+  + token_hash: VARCHAR(255)
+  + expires_at: TIMESTAMP
+  + created_at: TIMESTAMP
+  + revoked_at: TIMESTAMP <<NULLABLE>>
+  + device_info: VARCHAR(500) <<NULLABLE>>
+}
+
+' Связи
+User "1" -- "0..*" UserRole : "имеет роли"
+Role "1" -- "0..*" UserRole : "назначена пользователям"
+User "1" -- "0..*" PhoneVerification : "имеет верификации"
+User "1" -- "0..*" RefreshToken : "имеет токены"
+UserRole "0..*" -- "1" User : "назначена кем (assigned_by)"
+
+' Индексы
+note right of User
+  **Индексы:**
+  - UNIQUE INDEX на phone
+  - INDEX на email
+  - INDEX на is_verified
+
+  **Примечание:**
+  is_verified = false при создании,
+  становится true после верификации
+end note
+
+note right of PhoneVerification
+  **Индексы:**
+  - INDEX на user_id
+  - INDEX на (phone, code)
+  - INDEX на expires_at
+
+  **Бизнес-логика:**
+  - Код действителен 10 минут
+  - Максимум 3 попытки ввода
+end note
+
+note right of RefreshToken
+  **Индексы:**
+  - INDEX на user_id
+  - INDEX на token_hash
+  - INDEX на expires_at
+
+  **Примечание:**
+  Используется для получения
+  access токенов при логине
+end note
+
+note right of Role
+  **Стандартные роли:**
+  - Client (клиент такси)
+  - Driver (водитель)
+  - Employee (сотрудник)
+  - Admin (администратор)
+end note
+
+@enduml
