@@ -376,6 +376,12 @@ Content-Type: application/json
 }
 ```
 
+**Тестирование 200:**
+
+![img_9.png](img_9.png)
+![img_10.png](img_10.png)
+![img_11.png](img_11.png)
+
 ---
 
 ### 4. PUT /api/v1/orders/{id} — Обновить заказ
