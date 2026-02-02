@@ -28,12 +28,6 @@
 - Упрощает обратную совместимость при внесении breaking changes
 - Версионирование через URI проще для документирования и понимания клиентами
 
-**Пример:**
-```
-GET /api/v1/orders
-GET /api/v2/orders (будущая версия с новыми полями)
-```
-
 ---
 
 ### 2. Использование правильных HTTP методов (REST principles)
@@ -49,14 +43,6 @@ GET /api/v2/orders (будущая версия с новыми полями)
 - Идемпотентность PUT и DELETE гарантирует, что повторный запрос даст тот же результат (важно при сетевых сбоях)
 - Правильное использование GET позволяет кешировать ответы
 - Соответствие стандартам упрощает интеграцию с HTTP-клиентами и прокси
-
-**Примеры:**
-```
-GET /api/v1/orders/123        - чтение (можно кешировать)
-POST /api/v1/orders           - создание
-PUT /api/v1/orders/123        - обновление (повторный запрос безопасен)
-DELETE /api/v1/orders/123     - удаление (повторный запрос вернет 404, но безопасен)
-```
 
 ---
 
@@ -94,25 +80,6 @@ DELETE /api/v1/orders/123     - удаление (повторный запро�
 - Единообразие упрощает парсинг и сериализацию на клиенте и сервере
 - UTF-8 необходим для поддержки мультиязычности (требование расширения за рубеж)
 
-**Пример:**
-```json
-{
-  "orderId": "550e8400-e29b-41d4-a716-446655440000",
-  "customerId": "123",
-  "items": [
-    {
-      "menuItemId": "item-001",
-      "name": "Сэндвич BLT",
-      "quantity": 2,
-      "price": 350.00
-    }
-  ],
-  "totalAmount": 700.00,
-  "status": "pending",
-  "createdAt": "2026-02-02T16:30:00Z"
-}
-```
-
 ---
 
 ### 7. Аутентификация и авторизация через JWT Bearer Token
@@ -132,26 +99,6 @@ DELETE /api/v1/orders/123     - удаление (повторный запро�
 - Клиент может видеть/изменять только свои заказы
 - Сотрудник магазина может видеть заказы своего магазина и обновлять их статус
 - Водитель доставки видит заказы, назначенные ему
-
-**Пример:**
-```
-GET /api/v1/orders/123
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-
-// Если токен невалиден
-401 Unauthorized
-{
-  "error": "Unauthorized",
-  "message": "Invalid or expired token"
-}
-
-// Если клиент пытается получить чужой заказ
-403 Forbidden
-{
-  "error": "Forbidden",
-  "message": "You don't have permission to access this order"
-}
-```
 
 ---
 
@@ -186,31 +133,6 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 - `message` — человекочитаемое описание для отладки
 - `details` — дополнительный контекст (например, какие поля не прошли валидацию)
 - Соответствие RFC 7807 (Problem Details for HTTP APIs) делает API стандартизированным
-
-**Примеры:**
-```json
-// Валидационная ошибка
-400 Bad Request
-{
-  "error": "ValidationError",
-  "message": "Invalid order data",
-  "details": {
-    "items": "At least one item is required",
-    "totalAmount": "Must be greater than 0"
-  }
-}
-
-// Бизнес-логика ошибка
-409 Conflict
-{
-  "error": "OrderCannotBeCancelled",
-  "message": "Cannot cancel order in status 'completed'",
-  "details": {
-    "orderId": "123",
-    "currentStatus": "completed"
-  }
-}
-```
 
 ---
 
@@ -397,18 +319,6 @@ Content-Type: application/json
   "paymentMethod": "card"
 }
 ```
-
-**Описание полей запроса:**
-
-| Поле | Тип | Обязательное | Описание |
-|------|-----|--------------|----------|
-| `storeId` | string | Да | ID магазина, в котором оформляется заказ |
-| `items` | array | Да | Массив позиций заказа (минимум 1) |
-| `items[].menuItemId` | string | Да | ID позиции меню |
-| `items[].quantity` | integer | Да | Количество (минимум 1) |
-| `deliveryType` | string | Да | Тип получения: `pickup` (самовывоз) или `delivery` (доставка) |
-| `deliveryAddress` | string | Условно | Адрес доставки (обязателен если `deliveryType=delivery`) |
-| `paymentMethod` | string | Да | Способ оплаты: `card` (онлайн), `cash` (при получении) |
 
 **Пример успешного ответа (201 Created):**
 ```json
@@ -716,13 +626,6 @@ Content-Type: application/json
 **Метод:** `GET`
 
 **Аутентификация:** Не требуется (публичный endpoint)
-
-**Query параметры:**
-
-| Параметр | Тип | Обязательный | Описание |
-|----------|-----|--------------|----------|
-| `category` | string | Нет | Фильтр по категории (sandwich, drink, side, dessert) |
-| `storeId` | string | Нет | Фильтр по доступности в конкретном магазине |
 
 **Заголовки запроса:**
 ```
