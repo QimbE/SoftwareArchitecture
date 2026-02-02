@@ -157,7 +157,7 @@
 
 ### 1. GET /api/v1/orders — Получить список заказов пользователя
 
-**Описание:** Возвращает список заказов текущего аутентифицированного пользователя с пагинацией и фильтрацией.
+**Описание:** Возвращает список заказов текущего аутентифицированного пользователя.
 
 **Метод:** `GET`
 
@@ -165,57 +165,48 @@
 
 **Заголовки запроса:**
 ```
-GET /api/v1/orders?page=1&pageSize=10&status=pending
+GET /api/v1/orders
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 Content-Type: application/json
 ```
 
 **Пример успешного ответа (200 OK):**
 ```json
-{
-  "data": [
-    {
-      "orderId": "550e8400-e29b-41d4-a716-446655440000",
-      "customerId": "customer-123",
-      "storeId": "store-456",
-      "items": [
-        {
-          "menuItemId": "item-001",
-          "name": "Сэндвич BLT",
-          "quantity": 2,
-          "price": 350.00,
-          "subtotal": 700.00
-        },
-        {
-          "menuItemId": "item-015",
-          "name": "Кола 0.5л",
-          "quantity": 1,
-          "price": 120.00,
-          "subtotal": 120.00
-        }
-      ],
-      "totalAmount": 820.00,
-      "status": "pending",
-      "deliveryType": "pickup",
-      "deliveryAddress": null,
-      "createdAt": "2026-02-02T14:30:00Z",
-      "estimatedReadyAt": "2026-02-02T14:50:00Z",
-      "completedAt": null
-    }
-  ],
-  "pagination": {
-    "page": 1,
-    "pageSize": 10,
-    "totalItems": 25,
-    "totalPages": 3
+[
+  {
+    "orderId": "550e8400-e29b-41d4-a716-446655440000",
+    "customerId": "customer-123",
+    "storeId": "store-456",
+    "items": [
+      {
+        "menuItemId": "item-001",
+        "name": "Сэндвич BLT",
+        "quantity": 2,
+        "price": 350.00,
+        "subtotal": 700.00
+      },
+      {
+        "menuItemId": "item-015",
+        "name": "Кола 0.5л",
+        "quantity": 1,
+        "price": 120.00,
+        "subtotal": 120.00
+      }
+    ],
+    "totalAmount": 820.00,
+    "status": "pending",
+    "deliveryType": "pickup",
+    "deliveryAddress": null,
+    "createdAt": "2026-02-02T14:30:00Z",
+    "estimatedReadyAt": "2026-02-02T14:50:00Z",
+    "completedAt": null
   }
-}
+]
 ```
 
 **Возможные коды ответа:**
 - `200 OK` — список заказов успешно получен
 - `401 Unauthorized` — отсутствует или невалидный токен
-- `400 Bad Request` — невалидные параметры запроса (например, `pageSize > 100`)
 
 ---
 
