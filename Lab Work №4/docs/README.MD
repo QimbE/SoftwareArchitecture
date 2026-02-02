@@ -79,20 +79,6 @@ DELETE /api/v1/orders/123     - удаление (повторный запро�
 - HTTP-клиенты и фреймворки имеют встроенную поддержку обработки стандартных кодов
 - Соответствие стандартам делает API профессиональным и предсказуемым
 
-**Пример:**
-```json
-// POST /api/v1/orders - успех
-201 Created
-Location: /api/v1/orders/12345
-
-// PUT /api/v1/orders/99999 - заказ не найден
-404 Not Found
-{
-  "error": "OrderNotFound",
-  "message": "Order with ID 99999 does not exist"
-}
-```
-
 ---
 
 ### 4. Единый формат данных — JSON с camelCase
@@ -125,69 +111,6 @@ Location: /api/v1/orders/12345
   "status": "pending",
   "createdAt": "2026-02-02T16:30:00Z"
 }
-```
-
----
-
-### 5. Пагинация для коллекций (Cursor-based + metadata)
-
-**Решение:** Возвращать список с метаданными пагинации:
-```
-GET /api/v1/orders?page=1&pageSize=20
-```
-
-Ответ содержит:
-- `data` — массив элементов
-- `pagination` — метаданные (текущая страница, размер страницы, общее количество)
-
-**Обоснование:**
-- Список заказов может содержать тысячи записей — без пагинации ответ будет огромным
-- Пагинация снижает нагрузку на сервер и ускоряет ответы
-- Метаданные позволяют клиенту корректно отображать UI (номер страницы, общее количество)
-- Опциональный параметр `pageSize` дает контроль клиенту (мобильное приложение может запросить 10, web — 50)
-
-**Пример:**
-```json
-GET /api/v1/orders?page=2&pageSize=20
-
-{
-  "data": [
-    { "orderId": "...", "status": "completed", ... },
-    { "orderId": "...", "status": "in_progress", ... }
-  ],
-  "pagination": {
-    "page": 2,
-    "pageSize": 20,
-    "totalItems": 157,
-    "totalPages": 8
-  }
-}
-```
-
----
-
-### 6. Фильтрация и сортировка через query parameters
-
-**Решение:** Поддержка параметров запроса для фильтрации:
-```
-GET /api/v1/orders?status=pending&sortBy=createdAt&sortOrder=desc
-```
-
-**Обоснование:**
-- Клиенту часто нужны только заказы в определенном статусе (например, "активные")
-- Сортировка позволяет отобразить самые новые или старые заказы
-- Query parameters — стандартный способ передачи опциональных фильтров в REST
-- Не создаем отдельные endpoints для каждой комбинации фильтров (избегаем endpoint explosion)
-
-**Поддерживаемые фильтры:**
-- `status` — фильтр по статусу (pending, preparing, ready, in_delivery, completed, cancelled)
-- `storeId` — фильтр по магазину (для владельцев франшиз)
-- `sortBy` — поле сортировки (createdAt, totalAmount)
-- `sortOrder` — направление (asc, desc)
-
-**Пример:**
-```
-GET /api/v1/orders?status=pending&status=preparing&sortBy=createdAt&sortOrder=desc
 ```
 
 ---
@@ -243,22 +166,6 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 - Идемпотентность гарантирует, что повторный запрос не вызовет дублирования или ошибок
 - Критично для операций изменения данных (отмена заказа не должна создавать несколько отмен)
 - Упрощается реализация retry-логики на клиенте
-
-**Пример:**
-```
-// Первый DELETE
-DELETE /api/v1/orders/123
-204 No Content
-
-// Повторный DELETE (из-за retry)
-DELETE /api/v1/orders/123
-404 Not Found
-{
-  "error": "OrderNotFound",
-  "message": "Order 123 does not exist or already cancelled"
-}
-// Клиент понимает, что заказ уже не существует — это ожидаемое поведение при идемпотентности
-```
 
 ---
 
@@ -320,24 +227,549 @@ DELETE /api/v1/orders/123
 - Формат с `Z` явно указывает на UTC (избегаем неоднозначности)
 - Критично для международной экспансии — разные страны, разные временные зоны
 
-**Пример:**
+---
+
+## Документация по API
+
+### Endpoints
+
+Всего реализовано **8 endpoints** (требуется минимум 6).
+
+---
+
+### 1. GET /api/v1/orders — Получить список заказов пользователя
+
+**Описание:** Возвращает список заказов текущего аутентифицированного пользователя с пагинацией и фильтрацией.
+
+**Метод:** `GET`
+
+**Аутентификация:** Обязательна (JWT Bearer Token)
+
+**Заголовки запроса:**
+```
+GET /api/v1/orders?page=1&pageSize=10&status=pending
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+```
+
+**Пример успешного ответа (200 OK):**
 ```json
 {
-  "orderId": "123",
+  "data": [
+    {
+      "orderId": "550e8400-e29b-41d4-a716-446655440000",
+      "customerId": "customer-123",
+      "storeId": "store-456",
+      "items": [
+        {
+          "menuItemId": "item-001",
+          "name": "Сэндвич BLT",
+          "quantity": 2,
+          "price": 350.00,
+          "subtotal": 700.00
+        },
+        {
+          "menuItemId": "item-015",
+          "name": "Кола 0.5л",
+          "quantity": 1,
+          "price": 120.00,
+          "subtotal": 120.00
+        }
+      ],
+      "totalAmount": 820.00,
+      "status": "pending",
+      "deliveryType": "pickup",
+      "deliveryAddress": null,
+      "createdAt": "2026-02-02T14:30:00Z",
+      "estimatedReadyAt": "2026-02-02T14:50:00Z",
+      "completedAt": null
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "pageSize": 10,
+    "totalItems": 25,
+    "totalPages": 3
+  }
+}
+```
+
+**Возможные коды ответа:**
+- `200 OK` — список заказов успешно получен
+- `401 Unauthorized` — отсутствует или невалидный токен
+- `400 Bad Request` — невалидные параметры запроса (например, `pageSize > 100`)
+
+---
+
+### 2. GET /api/v1/orders/{id} — Получить конкретный заказ
+
+**Описание:** Возвращает детальную информацию о конкретном заказе по ID.
+
+**Метод:** `GET`
+
+**Аутентификация:** Обязательна (JWT Bearer Token)
+
+**Заголовки запроса:**
+```
+GET /api/v1/orders/550e8400-e29b-41d4-a716-446655440000
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+```
+
+**Пример успешного ответа (200 OK):**
+```json
+{
+  "orderId": "550e8400-e29b-41d4-a716-446655440000",
+  "customerId": "customer-123",
+  "storeId": "store-456",
+  "storeName": "Subway на Ленина",
+  "storeAddress": "ул. Ленина, 15",
+  "items": [
+    {
+      "menuItemId": "item-001",
+      "name": "Сэндвич BLT",
+      "quantity": 2,
+      "price": 350.00,
+      "subtotal": 700.00
+    }
+  ],
+  "totalAmount": 700.00,
+  "status": "preparing",
+  "deliveryType": "pickup",
+  "deliveryAddress": null,
+  "paymentMethod": "card",
+  "paymentStatus": "paid",
   "createdAt": "2026-02-02T14:30:00Z",
-  "estimatedReadyAt": "2026-02-02T14:45:00Z",
-  "completedAt": null
+  "estimatedReadyAt": "2026-02-02T14:50:00Z",
+  "completedAt": null,
+  "statusHistory": [
+    {
+      "status": "pending",
+      "timestamp": "2026-02-02T14:30:00Z"
+    },
+    {
+      "status": "preparing",
+      "timestamp": "2026-02-02T14:35:00Z"
+    }
+  ]
+}
+```
+
+**Возможные коды ответа:**
+- `200 OK` — заказ успешно получен
+- `401 Unauthorized` — отсутствует или невалидный токен
+- `403 Forbidden` — пользователь не имеет прав на просмотр этого заказа
+- `404 Not Found` — заказ с указанным ID не существует
+
+---
+
+### 3. POST /api/v1/orders — Создать новый заказ
+
+**Описание:** Создает новый заказ для текущего пользователя.
+
+**Метод:** `POST`
+
+**Аутентификация:** Обязательна (JWT Bearer Token)
+
+**Заголовки запроса:**
+```
+POST /api/v1/orders
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+```
+
+**Тело запроса (Request Body):**
+```json
+{
+  "storeId": "store-456",
+  "items": [
+    {
+      "menuItemId": "item-001",
+      "quantity": 2
+    },
+    {
+      "menuItemId": "item-015",
+      "quantity": 1
+    }
+  ],
+  "deliveryType": "pickup",
+  "deliveryAddress": null,
+  "paymentMethod": "card"
+}
+```
+
+**Описание полей запроса:**
+
+| Поле | Тип | Обязательное | Описание |
+|------|-----|--------------|----------|
+| `storeId` | string | Да | ID магазина, в котором оформляется заказ |
+| `items` | array | Да | Массив позиций заказа (минимум 1) |
+| `items[].menuItemId` | string | Да | ID позиции меню |
+| `items[].quantity` | integer | Да | Количество (минимум 1) |
+| `deliveryType` | string | Да | Тип получения: `pickup` (самовывоз) или `delivery` (доставка) |
+| `deliveryAddress` | string | Условно | Адрес доставки (обязателен если `deliveryType=delivery`) |
+| `paymentMethod` | string | Да | Способ оплаты: `card` (онлайн), `cash` (при получении) |
+
+**Пример успешного ответа (201 Created):**
+```json
+{
+  "orderId": "550e8400-e29b-41d4-a716-446655440000",
+  "customerId": "customer-123",
+  "storeId": "store-456",
+  "items": [
+    {
+      "menuItemId": "item-001",
+      "name": "Сэндвич BLT",
+      "quantity": 2,
+      "price": 350.00,
+      "subtotal": 700.00
+    },
+    {
+      "menuItemId": "item-015",
+      "name": "Кола 0.5л",
+      "quantity": 1,
+      "price": 120.00,
+      "subtotal": 120.00
+    }
+  ],
+  "totalAmount": 820.00,
+  "status": "pending",
+  "deliveryType": "pickup",
+  "deliveryAddress": null,
+  "paymentMethod": "card",
+  "paymentStatus": "pending",
+  "createdAt": "2026-02-02T14:30:00Z",
+  "estimatedReadyAt": "2026-02-02T14:50:00Z"
+}
+```
+
+**Заголовки ответа:**
+```
+HTTP/1.1 201 Created
+Location: /api/v1/orders/550e8400-e29b-41d4-a716-446655440000
+Content-Type: application/json
+```
+
+**Возможные коды ответа:**
+- `201 Created` — заказ успешно создан
+- `400 Bad Request` — ошибка валидации (пустой список items, невалидный storeId, и т.д.)
+- `401 Unauthorized` — отсутствует или невалидный токен
+- `404 Not Found` — один из menuItemId не существует в меню
+
+**Пример ошибки валидации (400 Bad Request):**
+```json
+{
+  "error": "ValidationError",
+  "message": "Invalid order data",
+  "details": {
+    "items": "At least one item is required",
+    "deliveryAddress": "Delivery address is required when deliveryType is 'delivery'"
+  }
 }
 ```
 
 ---
 
-## Документация по API
+### 4. PUT /api/v1/orders/{id} — Обновить заказ
 
-Расписать реализуемое API:
-- с указанием используемого метода;
-- с четким и подробным описанием отправляемых запросов и их параметров и получаемых ответов;
-- прописать форматы передаваемых данных и получаемых в ответах.
+**Описание:** Обновляет состав заказа (доступно только для заказов в статусе `pending`).
+
+**Метод:** `PUT`
+
+**Аутентификация:** Обязательна (JWT Bearer Token)
+
+**Заголовки запроса:**
+```
+PUT /api/v1/orders/550e8400-e29b-41d4-a716-446655440000
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+```
+
+**Тело запроса (Request Body):**
+```json
+{
+  "items": [
+    {
+      "menuItemId": "item-001",
+      "quantity": 3
+    },
+    {
+      "menuItemId": "item-020",
+      "quantity": 1
+    }
+  ],
+  "deliveryType": "delivery",
+  "deliveryAddress": "ул. Пушкина, 10, кв. 5"
+}
+```
+
+**Описание полей запроса:**
+
+| Поле | Тип | Обязательное | Описание |
+|------|-----|--------------|----------|
+| `items` | array | Да | Новый список позиций заказа (заменяет старый) |
+| `items[].menuItemId` | string | Да | ID позиции меню |
+| `items[].quantity` | integer | Да | Количество (минимум 1) |
+| `deliveryType` | string | Нет | Тип получения (если изменился) |
+| `deliveryAddress` | string | Условно | Новый адрес доставки |
+
+**Пример успешного ответа (200 OK):**
+```json
+{
+  "orderId": "550e8400-e29b-41d4-a716-446655440000",
+  "customerId": "customer-123",
+  "storeId": "store-456",
+  "items": [
+    {
+      "menuItemId": "item-001",
+      "name": "Сэндвич BLT",
+      "quantity": 3,
+      "price": 350.00,
+      "subtotal": 1050.00
+    },
+    {
+      "menuItemId": "item-020",
+      "name": "Картофель фри",
+      "quantity": 1,
+      "price": 150.00,
+      "subtotal": 150.00
+    }
+  ],
+  "totalAmount": 1200.00,
+  "status": "pending",
+  "deliveryType": "delivery",
+  "deliveryAddress": "ул. Пушкина, 10, кв. 5",
+  "updatedAt": "2026-02-02T14:35:00Z"
+}
+```
+
+**Возможные коды ответа:**
+- `200 OK` — заказ успешно обновлен
+- `400 Bad Request` — ошибка валидации
+- `401 Unauthorized` — отсутствует или невалидный токен
+- `403 Forbidden` — пользователь не владелец заказа
+- `404 Not Found` — заказ не существует
+- `409 Conflict` — заказ нельзя изменить (статус не `pending`)
+
+**Пример ошибки конфликта (409 Conflict):**
+```json
+{
+  "error": "OrderCannotBeModified",
+  "message": "Cannot modify order in status 'preparing'",
+  "details": {
+    "orderId": "550e8400-e29b-41d4-a716-446655440000",
+    "currentStatus": "preparing"
+  }
+}
+```
+
+---
+
+### 5. DELETE /api/v1/orders/{id} — Отменить заказ
+
+**Описание:** Отменяет заказ (доступно только для заказов в статусах `pending` или `preparing`).
+
+**Метод:** `DELETE`
+
+**Аутентификация:** Обязательна (JWT Bearer Token)
+
+**Заголовки запроса:**
+```
+DELETE /api/v1/orders/550e8400-e29b-41d4-a716-446655440000
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+**Пример успешного ответа (204 No Content):**
+```
+HTTP/1.1 204 No Content
+```
+
+(Тело ответа отсутствует при успешной отмене)
+
+**Возможные коды ответа:**
+- `204 No Content` — заказ успешно отменен
+- `401 Unauthorized` — отсутствует или невалидный токен
+- `403 Forbidden` — пользователь не владелец заказа
+- `404 Not Found` — заказ не существует
+- `409 Conflict` — заказ нельзя отменить (статус `in_delivery`, `completed`)
+
+**Пример ошибки конфликта (409 Conflict):**
+```json
+{
+  "error": "OrderCannotBeCancelled",
+  "message": "Cannot cancel order in status 'in_delivery'",
+  "details": {
+    "orderId": "550e8400-e29b-41d4-a716-446655440000",
+    "currentStatus": "in_delivery"
+  }
+}
+```
+
+**Идемпотентность:**
+Повторный вызов `DELETE` для уже отмененного заказа вернет `404 Not Found` (заказ не существует или уже отменен), что является ожидаемым поведением.
+
+---
+
+### 6. GET /api/v1/orders/{id}/status — Получить статус заказа
+
+**Описание:** Возвращает только статус заказа (легковесный endpoint для polling).
+
+**Метод:** `GET`
+
+**Аутентификация:** Обязательна (JWT Bearer Token)
+
+**Заголовки запроса:**
+```
+GET /api/v1/orders/550e8400-e29b-41d4-a716-446655440000/status
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+**Пример успешного ответа (200 OK):**
+```json
+{
+  "orderId": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "preparing",
+  "estimatedReadyAt": "2026-02-02T14:50:00Z",
+  "lastUpdated": "2026-02-02T14:35:00Z"
+}
+```
+
+**Возможные статусы:**
+- `pending` — заказ принят, ожидает обработки
+- `preparing` — заказ готовится
+- `ready` — заказ готов к выдаче/доставке
+- `in_delivery` — заказ в доставке
+- `completed` — заказ завершен
+- `cancelled` — заказ отменен
+
+**Возможные коды ответа:**
+- `200 OK` — статус успешно получен
+- `401 Unauthorized` — отсутствует или невалидный токен
+- `403 Forbidden` — пользователь не имеет прав на просмотр этого заказа
+- `404 Not Found` — заказ не существует
+
+---
+
+### 7. PUT /api/v1/orders/{id}/status — Обновить статус заказа (для персонала)
+
+**Описание:** Обновляет статус заказа (доступно только для ролей `employee` или `store_manager`).
+
+**Метод:** `PUT`
+
+**Аутентификация:** Обязательна (JWT Bearer Token с ролью `employee` или `store_manager`)
+
+**Заголовки запроса:**
+```
+PUT /api/v1/orders/550e8400-e29b-41d4-a716-446655440000/status
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+```
+
+**Тело запроса (Request Body):**
+```json
+{
+  "status": "ready"
+}
+```
+
+**Допустимые переходы статусов:**
+- `pending` → `preparing` (сотрудник начал готовить)
+- `preparing` → `ready` (заказ готов)
+- `ready` → `in_delivery` (передан водителю)
+- `ready` → `completed` (выдан клиенту при самовывозе)
+- `in_delivery` → `completed` (доставлен клиенту)
+
+**Пример успешного ответа (200 OK):**
+```json
+{
+  "orderId": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "ready",
+  "lastUpdated": "2026-02-02T14:45:00Z"
+}
+```
+
+**Возможные коды ответа:**
+- `200 OK` — статус успешно обновлен
+- `400 Bad Request` — невалидный статус или недопустимый переход
+- `401 Unauthorized` — отсутствует или невалидный токен
+- `403 Forbidden` — пользователь не имеет роли `employee` или `store_manager`
+- `404 Not Found` — заказ не существует
+
+**Пример ошибки недопустимого перехода (400 Bad Request):**
+```json
+{
+  "error": "InvalidStatusTransition",
+  "message": "Cannot transition from 'completed' to 'preparing'",
+  "details": {
+    "currentStatus": "completed",
+    "requestedStatus": "preparing"
+  }
+}
+```
+
+---
+
+### 8. GET /api/v1/menu — Получить меню
+
+**Описание:** Возвращает список всех доступных позиций меню.
+
+**Метод:** `GET`
+
+**Аутентификация:** Не требуется (публичный endpoint)
+
+**Query параметры:**
+
+| Параметр | Тип | Обязательный | Описание |
+|----------|-----|--------------|----------|
+| `category` | string | Нет | Фильтр по категории (sandwich, drink, side, dessert) |
+| `storeId` | string | Нет | Фильтр по доступности в конкретном магазине |
+
+**Заголовки запроса:**
+```
+GET /api/v1/menu?category=sandwich
+Content-Type: application/json
+```
+
+**Пример успешного ответа (200 OK):**
+```json
+{
+  "items": [
+    {
+      "menuItemId": "item-001",
+      "name": "Сэндвич BLT",
+      "description": "Бекон, салат, помидоры на итальянском хлебе",
+      "category": "sandwich",
+      "price": 350.00,
+      "isAvailable": true,
+      "imageUrl": "https://cdn.example.com/menu/blt.jpg"
+    },
+    {
+      "menuItemId": "item-002",
+      "name": "Сэндвич с курицей терияки",
+      "description": "Куриная грудка терияки с овощами",
+      "category": "sandwich",
+      "price": 380.00,
+      "isAvailable": true,
+      "imageUrl": "https://cdn.example.com/menu/teriyaki.jpg"
+    },
+    {
+      "menuItemId": "item-015",
+      "name": "Кола 0.5л",
+      "description": "Coca-Cola 0.5 литра",
+      "category": "drink",
+      "price": 120.00,
+      "isAvailable": true,
+      "imageUrl": "https://cdn.example.com/menu/cola.jpg"
+    }
+  ]
+}
+```
+
+**Возможные коды ответа:**
+- `200 OK` — меню успешно получено
+- `400 Bad Request` — невалидные параметры фильтрации
+
+---
 
 
 ## Тестирование API
