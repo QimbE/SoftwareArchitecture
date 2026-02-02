@@ -208,6 +208,11 @@ Content-Type: application/json
 - `200 OK` — список заказов успешно получен
 - `401 Unauthorized` — отсутствует или невалидный токен
 
+**Тестирование 200:**
+![img.png](img.png)
+![img_1.png](img_1.png)
+![img_2.png](img_2.png)
+
 ---
 
 ### 2. GET /api/v1/orders/{id} — Получить конкретный заказ
@@ -269,6 +274,12 @@ Content-Type: application/json
 - `401 Unauthorized` — отсутствует или невалидный токен
 - `403 Forbidden` — пользователь не имеет прав на просмотр этого заказа
 - `404 Not Found` — заказ с указанным ID не существует
+
+**Тестирование 200:**
+
+![img_6.png](img_6.png)
+![img_7.png](img_7.png)
+![img_8.png](img_8.png)
 
 ---
 
