@@ -577,8 +577,11 @@ Content-Type: application/json
 - `400 Bad Request` — невалидные параметры фильтрации
 
 
-**Тестирование 200:**
+**Тестирование 204:**
 
+![img_16.png](img_16.png)
+![img_17.png](img_17.png)
+![img_18.png](img_18.png)
 
 
 ---
