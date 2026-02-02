@@ -155,10 +155,6 @@
 
 ### Endpoints
 
-Всего реализовано **8 endpoints** (требуется минимум 6).
-
----
-
 ### 1. GET /api/v1/orders — Получить список заказов пользователя
 
 **Описание:** Возвращает список заказов текущего аутентифицированного пользователя с пагинацией и фильтрацией.
@@ -413,16 +409,6 @@ Content-Type: application/json
 }
 ```
 
-**Описание полей запроса:**
-
-| Поле | Тип | Обязательное | Описание |
-|------|-----|--------------|----------|
-| `items` | array | Да | Новый список позиций заказа (заменяет старый) |
-| `items[].menuItemId` | string | Да | ID позиции меню |
-| `items[].quantity` | integer | Да | Количество (минимум 1) |
-| `deliveryType` | string | Нет | Тип получения (если изменился) |
-| `deliveryAddress` | string | Условно | Новый адрес доставки |
-
 **Пример успешного ответа (200 OK):**
 ```json
 {
@@ -520,106 +506,7 @@ HTTP/1.1 204 No Content
 
 ---
 
-### 6. GET /api/v1/orders/{id}/status — Получить статус заказа
-
-**Описание:** Возвращает только статус заказа (легковесный endpoint для polling).
-
-**Метод:** `GET`
-
-**Аутентификация:** Обязательна (JWT Bearer Token)
-
-**Заголовки запроса:**
-```
-GET /api/v1/orders/550e8400-e29b-41d4-a716-446655440000/status
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
-
-**Пример успешного ответа (200 OK):**
-```json
-{
-  "orderId": "550e8400-e29b-41d4-a716-446655440000",
-  "status": "preparing",
-  "estimatedReadyAt": "2026-02-02T14:50:00Z",
-  "lastUpdated": "2026-02-02T14:35:00Z"
-}
-```
-
-**Возможные статусы:**
-- `pending` — заказ принят, ожидает обработки
-- `preparing` — заказ готовится
-- `ready` — заказ готов к выдаче/доставке
-- `in_delivery` — заказ в доставке
-- `completed` — заказ завершен
-- `cancelled` — заказ отменен
-
-**Возможные коды ответа:**
-- `200 OK` — статус успешно получен
-- `401 Unauthorized` — отсутствует или невалидный токен
-- `403 Forbidden` — пользователь не имеет прав на просмотр этого заказа
-- `404 Not Found` — заказ не существует
-
----
-
-### 7. PUT /api/v1/orders/{id}/status — Обновить статус заказа (для персонала)
-
-**Описание:** Обновляет статус заказа (доступно только для ролей `employee` или `store_manager`).
-
-**Метод:** `PUT`
-
-**Аутентификация:** Обязательна (JWT Bearer Token с ролью `employee` или `store_manager`)
-
-**Заголовки запроса:**
-```
-PUT /api/v1/orders/550e8400-e29b-41d4-a716-446655440000/status
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-Content-Type: application/json
-```
-
-**Тело запроса (Request Body):**
-```json
-{
-  "status": "ready"
-}
-```
-
-**Допустимые переходы статусов:**
-- `pending` → `preparing` (сотрудник начал готовить)
-- `preparing` → `ready` (заказ готов)
-- `ready` → `in_delivery` (передан водителю)
-- `ready` → `completed` (выдан клиенту при самовывозе)
-- `in_delivery` → `completed` (доставлен клиенту)
-
-**Пример успешного ответа (200 OK):**
-```json
-{
-  "orderId": "550e8400-e29b-41d4-a716-446655440000",
-  "status": "ready",
-  "lastUpdated": "2026-02-02T14:45:00Z"
-}
-```
-
-**Возможные коды ответа:**
-- `200 OK` — статус успешно обновлен
-- `400 Bad Request` — невалидный статус или недопустимый переход
-- `401 Unauthorized` — отсутствует или невалидный токен
-- `403 Forbidden` — пользователь не имеет роли `employee` или `store_manager`
-- `404 Not Found` — заказ не существует
-
-**Пример ошибки недопустимого перехода (400 Bad Request):**
-```json
-{
-  "error": "InvalidStatusTransition",
-  "message": "Cannot transition from 'completed' to 'preparing'",
-  "details": {
-    "currentStatus": "completed",
-    "requestedStatus": "preparing"
-  }
-}
-```
-
----
-
-### 8. GET /api/v1/menu — Получить меню
+### 6. GET /api/v1/menu — Получить меню
 
 **Описание:** Возвращает список всех доступных позиций меню.
 
