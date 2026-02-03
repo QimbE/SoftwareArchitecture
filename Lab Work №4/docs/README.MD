@@ -167,7 +167,6 @@
 ```
 GET /api/v1/orders
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-Content-Type: application/json
 ```
 
 **Пример успешного ответа (200 OK):**
@@ -227,7 +226,6 @@ Content-Type: application/json
 ```
 GET /api/v1/orders/550e8400-e29b-41d4-a716-446655440000
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-Content-Type: application/json
 ```
 
 **Пример успешного ответа (200 OK):**
