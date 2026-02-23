@@ -26,7 +26,7 @@ jobs:
 
       - name: Build all services with docker-compose
         working-directory: ./Lab Work №5/src
-        run: docker-compose build
+        run: docker compose build
 
   push_to_registry:
     name: Push Docker images to Docker Hub
