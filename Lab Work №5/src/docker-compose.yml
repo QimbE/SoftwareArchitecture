@@ -30,7 +30,7 @@ services:
 
   db:
     image: postgres:latest
-    container_name: bablobudgetdb
+    container_name: bablobudgetdb2
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
