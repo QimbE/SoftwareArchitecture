@@ -1,0 +1,38 @@
+@startuml
+interface IPaymentProvider {
+  +Charge(orderId: Guid, amount: decimal): PaymentResult
+}
+interface ISmsGateway {
+  +Send(phone: string, text: string): void
+}
+interface IPushGateway {
+  +Send(deviceId: string, text: string): void
+}
+
+interface IIntegrationFactory {
+  +CreatePaymentProvider(method: PaymentMethod): IPaymentProvider
+  +CreateSmsGateway(): ISmsGateway
+  +CreatePushGateway(): IPushGateway
+}
+
+class ProdIntegrationFactory
+class SandboxIntegrationFactory
+
+IIntegrationFactory <|.. ProdIntegrationFactory
+IIntegrationFactory <|.. SandboxIntegrationFactory
+
+class TinkoffLikePaymentProvider
+class FakePaymentProvider
+IPaymentProvider <|.. TinkoffLikePaymentProvider
+IPaymentProvider <|.. FakePaymentProvider
+
+class SmsRuLikeGateway
+class ConsoleSmsGateway
+ISmsGateway <|.. SmsRuLikeGateway
+ISmsGateway <|.. ConsoleSmsGateway
+
+class FcmLikeGateway
+class ConsolePushGateway
+IPushGateway <|.. FcmLikeGateway
+IPushGateway <|.. ConsolePushGateway
+@enduml

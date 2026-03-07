@@ -1,0 +1,26 @@
+@startuml
+interface IPaymentProvider {
+  +Charge(orderId: Guid, amount: decimal): PaymentResult
+}
+
+class CardPaymentProvider
+class SbpPaymentProvider
+class FakePaymentProvider
+
+IPaymentProvider <|.. CardPaymentProvider
+IPaymentProvider <|.. SbpPaymentProvider
+IPaymentProvider <|.. FakePaymentProvider
+
+enum PaymentMethod {
+  Card
+  Sbp
+  Fake
+}
+
+class PaymentProviderFactory {
+  +Create(method: PaymentMethod): IPaymentProvider
+}
+
+PaymentProviderFactory ..> IPaymentProvider : creates
+PaymentProviderFactory ..> PaymentMethod
+@enduml

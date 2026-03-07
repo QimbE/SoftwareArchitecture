@@ -1,0 +1,29 @@
+@startuml
+interface IMenuClient {
+  +GetMenu(category: string?): List<MenuItem>
+}
+
+class RealMenuClient {
+  +GetMenu(category: string?): List<MenuItem>
+}
+
+class CachedMenuClientProxy {
+  -inner: IMenuClient
+  -cache: Map<string, CacheEntry>
+  -ttl: TimeSpan
+  +CachedMenuClientProxy(inner: IMenuClient, ttl: TimeSpan)
+  +GetMenu(category: string?): List<MenuItem>
+}
+
+class MenuItem {
+  +Id: string
+  +Name: string
+  +Price: decimal
+  +Category: string
+}
+
+IMenuClient <|.. RealMenuClient
+IMenuClient <|.. CachedMenuClientProxy
+CachedMenuClientProxy o-- IMenuClient : wraps
+IMenuClient ..> MenuItem
+@enduml

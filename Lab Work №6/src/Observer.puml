@@ -1,0 +1,29 @@
+@startuml
+interface IEvent { }
+
+class OrderCreatedEvent {
+  +OrderId: Guid
+  +Phone: string
+}
+IEvent <|.. OrderCreatedEvent
+
+interface IEventHandler<TEvent> {
+  +Handle(evt: TEvent): void
+}
+
+class SendSmsOnOrderCreatedHandler
+class AuditOnOrderCreatedHandler
+
+IEventHandler <|.. SendSmsOnOrderCreatedHandler
+IEventHandler <|.. AuditOnOrderCreatedHandler
+
+interface IEventBus {
+  +Publish(evt: IEvent): void
+  +Subscribe<TEvent>(handler: IEventHandler<TEvent>): void
+}
+
+class InMemoryEventBus
+
+IEventBus <|.. InMemoryEventBus
+InMemoryEventBus o-- IEventHandler : handlers
+@enduml

@@ -1,0 +1,19 @@
+@startuml
+interface ISmsGateway {
+  +Send(phone: string, text: string): void
+}
+
+class SmsRuSdkClient {
+  +SendMessage(to: string, message: string, sender: string): int
+}
+
+class SmsRuAdapter {
+  -client: SmsRuSdkClient
+  -sender: string
+  +SmsRuAdapter(client: SmsRuSdkClient, sender: string)
+  +Send(phone: string, text: string): void
+}
+
+ISmsGateway <|.. SmsRuAdapter
+SmsRuAdapter o-- SmsRuSdkClient : adapts
+@enduml

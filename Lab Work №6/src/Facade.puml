@@ -1,0 +1,45 @@
+@startuml
+class CheckoutFacade {
+  -builder: OrderBuilder
+  -paymentFactory: PaymentProviderFactory
+  -sms: ISmsGateway
+  -eventBus: IEventBus
+  +PlaceOrder(req: PlaceOrderRequest): Guid
+}
+
+class OrderBuilder {
+  +ForCustomer(customerId: Guid): OrderBuilder
+  +AddItem(menuItemId: string, name: string, qty: int, unitPrice: decimal): OrderBuilder
+  +AsPickup(): OrderBuilder
+  +AsDelivery(address: string): OrderBuilder
+  +WithPromo(code: string): OrderBuilder
+  +Build(): Order
+}
+
+class PaymentProviderFactory {
+  +Create(method: PaymentMethod): IPaymentProvider
+}
+
+interface IPaymentProvider {
+  +Charge(orderId: Guid, amount: decimal): PaymentResult
+}
+
+interface ISmsGateway {
+  +Send(phone: string, text: string): void
+}
+
+interface IEventBus {
+  +Publish(evt: object): void
+}
+
+class Order
+class PlaceOrderRequest
+class PaymentResult
+
+CheckoutFacade o-- OrderBuilder
+CheckoutFacade o-- PaymentProviderFactory
+CheckoutFacade ..> ISmsGateway
+CheckoutFacade ..> IEventBus
+CheckoutFacade ..> IPaymentProvider : uses
+CheckoutFacade ..> Order : creates
+@enduml

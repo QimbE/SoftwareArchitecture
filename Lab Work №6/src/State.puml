@@ -1,0 +1,29 @@
+@startuml
+class Order {
+  +Id: Guid
+  +State: OrderState
+  +UpdateItems(): void
+  +Cancel(): void
+  +Next(): void
+}
+
+abstract class OrderState {
+  +UpdateItems(order: Order): void
+  +Cancel(order: Order): void
+  +Next(order: Order): void
+}
+
+class PendingState
+class PreparingState
+class InDeliveryState
+class CompletedState
+class CancelledState
+
+OrderState <|-- PendingState
+OrderState <|-- PreparingState
+OrderState <|-- InDeliveryState
+OrderState <|-- CompletedState
+OrderState <|-- CancelledState
+
+Order o-- OrderState
+@enduml

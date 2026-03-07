@@ -1,0 +1,29 @@
+@startuml
+interface ISmsGateway {
+  +Send(phone: string, text: string): void
+}
+
+class SmsRuAdapter {
+  +Send(phone: string, text: string): void
+}
+ISmsGateway <|.. SmsRuAdapter
+
+abstract class SmsGatewayDecorator {
+  -inner: ISmsGateway
+  +SmsGatewayDecorator(inner: ISmsGateway)
+  +Send(phone: string, text: string): void
+}
+ISmsGateway <|.. SmsGatewayDecorator
+SmsGatewayDecorator o-- ISmsGateway : wraps
+
+class LoggingSmsGatewayDecorator {
+  +Send(phone: string, text: string): void
+}
+class RetrySmsGatewayDecorator {
+  -maxAttempts: int
+  +Send(phone: string, text: string): void
+}
+
+SmsGatewayDecorator <|-- LoggingSmsGatewayDecorator
+SmsGatewayDecorator <|-- RetrySmsGatewayDecorator
+@enduml

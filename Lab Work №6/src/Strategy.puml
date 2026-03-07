@@ -1,0 +1,21 @@
+@startuml
+interface IDiscountStrategy {
+  +CalculateDiscount(subtotal: decimal): decimal
+}
+
+class NoDiscountStrategy
+class PromoCode10PercentStrategy
+class Loyalty5PercentStrategy
+
+IDiscountStrategy <|.. NoDiscountStrategy
+IDiscountStrategy <|.. PromoCode10PercentStrategy
+IDiscountStrategy <|.. Loyalty5PercentStrategy
+
+class PriceCalculator {
+  -discountStrategy: IDiscountStrategy
+  +PriceCalculator(strategy: IDiscountStrategy)
+  +CalculateTotal(subtotal: decimal, deliveryFee: decimal): decimal
+}
+
+PriceCalculator o-- IDiscountStrategy
+@enduml
