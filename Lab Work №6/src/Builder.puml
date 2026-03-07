@@ -1,0 +1,42 @@
+@startuml
+class Order {
+  +Id: Guid
+  +CustomerId: Guid
+  +Items: List<OrderItem>
+  +DeliveryType: DeliveryType
+  +DeliveryAddress: string?
+  +PromoCode: string?
+  +TotalAmount: decimal
+}
+
+class OrderItem {
+  +MenuItemId: string
+  +Name: string
+  +Quantity: int
+  +UnitPrice: decimal
+  +LineTotal(): decimal
+}
+
+enum DeliveryType {
+  Pickup
+  Delivery
+}
+
+class OrderBuilder {
+  -customerId: Guid
+  -items: List<OrderItem>
+  -deliveryType: DeliveryType
+  -deliveryAddress: string?
+  -promoCode: string?
+  +ForCustomer(customerId: Guid): OrderBuilder
+  +AddItem(menuItemId: string, name: string, qty: int, unitPrice: decimal): OrderBuilder
+  +AsPickup(): OrderBuilder
+  +AsDelivery(address: string): OrderBuilder
+  +WithPromo(code: string): OrderBuilder
+  +Build(): Order
+}
+
+OrderBuilder ..> Order : builds
+Order "1" o-- "*" OrderItem
+Order ..> DeliveryType
+@enduml

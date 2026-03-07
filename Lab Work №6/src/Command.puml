@@ -1,0 +1,26 @@
+@startuml
+interface ICommand { }
+
+class CreateOrderCommand
+class CancelOrderCommand
+
+ICommand <|.. CreateOrderCommand
+ICommand <|.. CancelOrderCommand
+
+interface ICommandHandler<TCommand> {
+  +Handle(cmd: TCommand): CommandResult
+}
+
+class CreateOrderHandler
+class CancelOrderHandler
+
+ICommandHandler <|.. CreateOrderHandler
+ICommandHandler <|.. CancelOrderHandler
+
+class CommandDispatcher {
+  +Dispatch(cmd: ICommand): CommandResult
+}
+
+CommandDispatcher ..> ICommandHandler : locates handler
+CommandDispatcher ..> ICommand
+@enduml

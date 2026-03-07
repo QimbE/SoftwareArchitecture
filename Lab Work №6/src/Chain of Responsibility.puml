@@ -1,0 +1,27 @@
+@startuml
+class PlaceOrderContext {
+  +CustomerId: Guid
+  +ItemsCount: int
+  +HasDeliveryAddress: bool
+}
+
+abstract class OrderHandler {
+  -next: OrderHandler
+  +SetNext(next: OrderHandler): OrderHandler
+  +Handle(ctx: PlaceOrderContext): void
+  #Process(ctx: PlaceOrderContext): void
+}
+
+class ValidationHandler
+class StockCheckHandler
+class FraudCheckHandler
+class ExecutePlaceOrderHandler
+
+OrderHandler <|-- ValidationHandler
+OrderHandler <|-- StockCheckHandler
+OrderHandler <|-- FraudCheckHandler
+OrderHandler <|-- ExecutePlaceOrderHandler
+
+OrderHandler o-- OrderHandler : next
+OrderHandler ..> PlaceOrderContext
+@enduml
